@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: mart_nn_combined_steeped_obt
+    description: >
+      One Big Table joining both facts for the Steeped AI platform.
+
+      GRAIN: name + year_state_name_gender + state + year + mother_attr_label
+      + mother_attr_value. The SSA counts boys and girls separately, so a
+      name given to both in a state and year has two rows on the names side,
+      and year_state_name_gender says which is which. The join from the names
+      side to the natality aggregate is a deliberate many-to-many on (state,
+      year), so each names row appears once per mother-attribute value. That
+      cross product is the output. It lets the platform cross-tabulate name
+      choice against mother age, race, Hispanic origin and education without
+      being told which joins to make or which grain each column sits at.
+      Names measures repeat across mother-attribute rows and natality
+      measures repeat across names. Steeped AI resolves that at aggregation
+      time rather than assuming one row is one observation. Anything
+      aggregating this by hand should group to the grain above first.
+    columns:
+      - name: name
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: state_name
+        data_tests: [not_null]
+      - name: year_state_name_gender
+        description: >
+          The sex the SSA recorded for the babies counted in
+          year_state_name_count. name_gender describes the name overall, so
+          the two can differ.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['female', 'male']
+      - name: year_state_name_count
+        description: >
+          Names-side measure, repeated once per mother-attribute value for
+          the state and year. Grain-aware aggregation handles the repetition.
+        data_tests: [not_null]
+      - name: year_state_nat_mother_val_birth_count
+        description: Births for this mother-attribute value, both sexes.
+      - name: year_state_nat_total_birth_count
+        description: All births in the state/year, independent of the attribute.
+      - name: year_state_nat_female_birth_share
+        description: Female births / all births in the state/year.
+      - name: name_count_1995_2025_all_states
+        description: All-states total for the name over 1995-2025.

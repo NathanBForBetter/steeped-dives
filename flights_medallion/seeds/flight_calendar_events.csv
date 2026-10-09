@@ -1,0 +1,46 @@
+event_date,related_event,related_event_type
+2023-06-04,OPEC Cuts,energy restriction
+2023-08-08,Hawaii Wildfires,weather or natural disaster
+2023-08-28,Hurricane Idalia,weather or natural disaster
+2023-09-05,Saudi Arabia Cut,energy restriction
+2023-10-07,Israel-Hamas War,war or conflict
+2023-11-30,OPEC Cuts,energy restriction
+2023-12-15,Houthi Red Sea Attacks,war or conflict
+2023-12-20,Red Sea Closures or Diversions,route closure
+2023-12-23,National Winter Storm,weather or natural disaster
+2024-01-06,Door Blowout 737 Max Grounding,incident
+2024-01-24,FAA 737 Max Cap,government restriction
+2024-03-03,OPEC Extends Cuts,energy restriction
+2024-06-02,OPEC Extends Cuts,energy restriction
+2024-06-27,EWR Runway Incident,incident
+2024-07-05,Hurricane Beryl,weather or natural disaster
+2024-07-19,CrowdStrike Outage,tech issue
+2024-08-05,Hurricane Debby,weather or natural disaster
+2024-09-03,Oil Supply Increase,energy increase
+2024-09-13,Boeing Machinists Strike,staffing shortage
+2024-09-24,Hurricane Helene,weather or natural disaster
+2024-10-05,Hurricane Milton,weather or natural disaster
+2024-11-04,Hurricane Rafael,weather or natural disaster
+2025-01-07,Palisades and Eaton Fires,weather or natural disaster
+2025-01-29,DCA Midair Collision,incident
+2025-02-01,FAA NOTAM Outage,tech issue
+2025-03-03,OPEC Announces Increases,energy increase
+2025-03-14,Major Tornado,weather or natural disaster
+2025-04-28,EWR Staffing Issues,staffing shortage
+2025-05-09,Philadelphia Telecom Outage,tech issue
+2025-05-15,EWR Staffing Issues and Construction,staffing shortage
+2025-05-16,Severe Storms,weather or natural disaster
+2025-06-13,Israel Strikes Iran,war or conflict
+2025-06-21,US Strikes Iran,war or conflict
+2025-07-04,Texas Hill Country Flooding,weather or natural disaster
+2025-07-31,NYC/NJ Flooding,weather or natural disaster
+2025-11-01,Gov Shutdown Issues,government restriction
+2026-01-24,Major Winter Storm,weather or natural disaster
+2026-02-23,Northeast Nor'easter,weather or natural disaster
+2026-02-28,US War in Iran Begins,war or conflict
+2026-03-04,Strait of Hormuz Closure,route closure
+2026-03-13,Potomac TRACON Evacuation 1,incident
+2026-03-15,Major Blizzard,weather or natural disaster
+2026-03-27,Potomac TRACON Evacuation 2,incident
+2026-06-15,Southeast Flooding,weather or natural disaster
+2026-06-17,Strait of Hormuz Partial Opening,energy increase

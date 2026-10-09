@@ -1,0 +1,151 @@
+version: 2
+
+models:
+  # Staging is a thin, one-model-per-source layer: rename, lowercase,
+  # crosswalk a taxonomy, and nothing else. No joins and no business logic, so
+  # anything surprising downstream can be traced to exactly one of these.
+
+  - name: stg_nn_baby_names
+    description: SSA state-level name counts, renamed only.
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: gender
+        description: Gender SSA recorded for the NAME - not the infant's sex at birth.
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: name
+        data_tests: [not_null]
+
+  - name: stg_nn_natality_age
+    description: >
+      Mother's age. The nine age bands are the same in every vintage and
+      nothing is excluded, so int_nn_natality also uses this breakout for
+      total births per state, year and infant sex.
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: infant_gender
+        data_tests: [not_null]
+      - name: mothers_age
+        data_tests: [not_null]
+      - name: birth_count
+        data_tests: [not_null]
+      - name: source
+        description: WONDER dataset vintage, from the filename.
+        data_tests: [not_null]
+
+  - name: stg_nn_natality_edu
+    description: >
+      Mother's education. Years of schooling (1995-2006) and attainment
+      (2007 on) are mapped onto five levels that exist in every vintage.
+      Unknown rows are dropped. A state and year is left out when WONDER
+      excludes any of its births from the education breakout, which happens
+      between 2003 and 2015.
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: infant_gender
+        data_tests: [not_null]
+      - name: mothers_education
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - '8th grade or less'
+                  - 'some high school'
+                  - 'high school or ged'
+                  - 'some college'
+                  - 'bachelors or higher'
+      - name: birth_count
+        data_tests: [not_null]
+      - name: source
+        data_tests: [not_null]
+
+  - name: stg_nn_natality_hisp
+    description: >
+      Mother's Hispanic origin. Only the 1995-2002 vintage reports origin
+      groups; later vintages report one Hispanic or Latino figure. Both the
+      reported label and a bridged value are emitted.
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: infant_gender
+        data_tests: [not_null]
+      - name: mothers_hisp_origin
+        description: Label as the vintage reported it.
+        data_tests: [not_null]
+      - name: mothers_hisp_origin_bridged
+        description: >
+          'hispanic or latino' on every row, so the 1995-2002 groups add up to
+          the figure later vintages report directly.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['hispanic or latino']
+      - name: birth_count
+        data_tests: [not_null]
+      - name: source
+        data_tests: [not_null]
+
+  - name: stg_nn_natality_race
+    description: >
+      Mother's race. Each vintage reports race at a different level of
+      detail, so both the reported label and a bridged value are emitted.
+      2020 to 2024 have no race in WONDER and contribute no rows.
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: infant_gender
+        data_tests: [not_null]
+      - name: mothers_race
+        description: Label as the vintage reported it.
+        data_tests: [not_null]
+      - name: mothers_race_bridged
+        description: >
+          The four 1977 OMB groups every vintage rolls up to, plus
+          'more than one race', which only the 2025 vintage reports.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'white'
+                  - 'black or african american'
+                  - 'american indian or alaska native'
+                  - 'asian or pacific islander'
+                  - 'more than one race'
+      - name: birth_count
+        data_tests: [not_null]
+      - name: source
+        data_tests: [not_null]
+
+  - name: stg_nn_origins_ancestry
+    description: Ancestry first-name pages, successful fetches only (status = 'ok').
+    columns:
+      - name: name
+        data_tests: [not_null, unique]
+      - name: origin
+        data_tests: [not_null]
+
+  - name: stg_nn_origins_btn
+    description: >
+      BehindTheName origins. Keys on names_clean, the accent-folded column
+      extract_origins_btn.py produces, so accented names line up with the
+      SSA file. Reading raw `nll` instead made every one of them unjoinable.
+    columns:
+      - name: name
+        data_tests: [not_null]
+      - name: origin
+        data_tests: [not_null]

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "steeped-dives"
+version = "1.0.0"
+description = "Data modeling for Steeped Dives: dbt + Kimball + medallion across three open datasets"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "psycopg2-binary>=2.9.9",
+    "pandas>=2.1.0",
+    "pyarrow>=15.0.0",
+    "pyspark>=3.5.0",
+    "dbt-core>=1.8.0",
+    "dbt-postgres>=1.8.0",
+    "dbt-spark[session]>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = ["sqlfluff>=3.0.0", "ruff>=0.4.0"]
+
+# Only the shared config package is importable; each pipeline is a set of
+# ordered entry-point scripts run from its own directory.
+[tool.setuptools]
+packages = ["steeped_dives"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# These are entry-point scripts, not library modules. Each one prepends the
+# repo root to sys.path before importing `steeped_dives`, because running
+# `python flights_medallion/02_silver_staging.py` puts only that script's own
+# directory on sys.path. The imports that follow therefore cannot be at the
+# top of the file, which is exactly what E402 checks for.
+"board_games/build_board_game_filtered.py" = ["E402"]
+"flights_medallion/01_ingest_to_bronze.py" = ["E402"]
+"flights_medallion/02_silver_staging.py" = ["E402"]
+"flights_medallion/spark_session.py" = ["E402"]
+"natality_names_kimball/extract_names.py" = ["E402"]
+"natality_names_kimball/extract_natality.py" = ["E402"]
+"natality_names_kimball/extract_origins_btn.py" = ["E402"]
+"natality_names_kimball/spark_session.py" = ["E402"]

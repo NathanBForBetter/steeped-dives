@@ -1,0 +1,24 @@
+version: 2
+
+seeds:
+  # DUPLICATED: flights_medallion/seeds/us_states.csv is a byte-for-byte copy
+  # of us_states.csv. The two projects are independent and share no seed
+  # directory, so a change to one has to be made to the other. The note lives
+  # here and not in the CSV because dbt reads a CSV's first line as the header,
+  # so a comment line there breaks `dbt seed`.
+  - name: us_states
+    description: >
+      The 50 states plus DC with their Census region and division. One seed
+      instead of a CASE ladder per model. state_name is spelled the way CDC
+      WONDER spells it - 'District of Columbia', not 'Washington D.C.' -
+      because fct_nn_baby_natality joins on it, and a mismatch there leaves
+      every DC birth row without a state_key.
+    data_tests:
+      - assert_state_coverage:
+          arguments:
+            state_column: state_code
+    columns:
+      - name: state_code
+        data_tests: [not_null, unique]
+      - name: state_name
+        data_tests: [not_null, unique]

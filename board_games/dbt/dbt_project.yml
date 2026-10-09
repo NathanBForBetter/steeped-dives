@@ -1,0 +1,33 @@
+name: steeped_board_games
+version: "1.0.0"
+config-version: 2
+
+profile: steeped_board_games
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+clean-targets: ["target", "dbt_packages", "logs"]
+
+# Namespace that adapter.dispatch() searches for the <adapter>__ variants of
+# this project's own macros (see macros/safe_divide.sql).
+dispatch:
+  - macro_namespace: steeped_macros
+    search_order: ["steeped_board_games"]
+
+models:
+  steeped_board_games:
+    staging:
+      +materialized: view
+
+    intermediate:
+      +materialized: table
+
+    core:
+      +materialized: table
+
+    marts:
+      +materialized: table

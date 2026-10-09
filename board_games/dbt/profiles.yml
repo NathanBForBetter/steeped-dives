@@ -1,0 +1,28 @@
+## dbt profile for the local Postgres warehouse.
+##
+## Credentials come from the repo-root .env using libpq's own variable names,
+## so psql, psycopg2 and dbt all read the same five values and this file is
+## safe to commit. See .env.example for the contract.
+##
+##     cd board_games/dbt
+##     set -a; source ../../.env; set +a
+##     echo "$PGHOST" "$PGDATABASE"        # confirm, never echo PGPASSWORD
+##     dbt deps && dbt build
+##
+## dbt resolves profiles.yml from --profiles-dir, then DBT_PROFILES_DIR, then
+## the current working directory, then ~/.dbt - so running from this folder
+## picks up this file with no flags.
+
+steeped_board_games:
+  target: dev
+
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', 5432) | int }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
+      schema: "{{ env_var('PGSCHEMA', 'public') }}"
+      threads: 4

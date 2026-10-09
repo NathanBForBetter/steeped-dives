@@ -1,0 +1,52 @@
+snapshots:
+  - name: scd_board_game
+    description: >
+      Type 2 history of each board game's descriptive attributes. One row per
+      game per version. fct_board_games joins the version that was in force on
+      its scrape_date.
+    relation: ref('int_board_games_main_dims')
+    config:
+      database: "{{ env_var('PGDATABASE', 'postgres') }}"
+      # dbt prefixes a custom schema with the target schema, so with the
+      # default profile this lands in public_snapshots.
+      schema: snapshots
+      unique_key: board_game_url
+      strategy: check
+      # Only the attributes worth versioning. Ratings and vote counts change on
+      # every scrape, so versioning them would add a row per game per run and
+      # turn this into a ratings log. scrape_date is left out for the same
+      # reason: it changes every scrape by construction.
+      check_cols:
+        - board_game_name
+        - year_made
+        - short_descr
+        - main_publisher
+        - secondary_publisher
+      # Without this, the check strategy stamps dbt_valid_from with the clock
+      # time the snapshot ran. The fact joins on scrape time, so the validity
+      # window has to be in scrape time too, or a scrape from September never
+      # falls inside a window that opened when dbt ran in October.
+      # scraped_at is scrape_date as a timestamp, which is the type dbt uses
+      # for the timestamps it writes itself.
+      updated_at: scraped_at
+      # A game delisted from BGG gets a closing record instead of staying open
+      # forever. dbt dates that record with the time it ran, not with
+      # scraped_at, so a deletion is the one row whose dates are clock time.
+      hard_deletes: new_record
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - board_game_url
+              - dbt_valid_from
+    columns:
+      - name: dbt_scd_id
+        description: Surrogate key of one version of one game.
+        data_tests: [unique, not_null]
+      - name: board_game_url
+        data_tests: [not_null]
+      - name: dbt_valid_from
+        description: Scrape time this version first appeared in. Inclusive.
+        data_tests: [not_null]
+      - name: dbt_valid_to
+        description: Scrape time the next version appeared in. Exclusive. Null on the open version.

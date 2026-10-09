@@ -1,0 +1,254 @@
+version: 2
+
+models:
+  # --- Kimball core: two facts over five conformed dimensions --------------
+  #
+  # Both facts share dim_nn_year, dim_nn_state and dim_nn_gender. That is what
+  # makes the mart a join rather than a reconciliation, and it is also why
+  # those three dimensions are built from the UNION of both sources: a
+  # dimension built from one fact's source leaves the other fact with null
+  # foreign keys that no test on the dimension itself would ever catch.
+
+  - name: fct_nn_baby_names
+    description: >
+      Name assignments by state, year and name gender, from the SSA
+      state-level files. gender_key plays the "name gender" role.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - year_key
+              - state_key
+              - name_key
+              - gender_key
+    columns:
+      - name: year_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_year')
+                field: year_key
+      - name: state_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_state')
+                field: state_key
+      - name: name_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_name')
+                field: name_key
+      - name: gender_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_gender')
+                field: gender_key
+      - name: name_count
+        data_tests: [not_null]
+
+  - name: fct_nn_baby_natality
+    description: >
+      Births by state, year, infant sex and one mother attribute. gender_key
+      plays the "infant sex at birth" role. Grain matches the unpivoted grain
+      of int_nn_natality.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - year_key
+              - state_key
+              - mother_key
+              - gender_key
+    columns:
+      - name: year_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_year')
+                field: year_key
+      - name: state_key
+        description: >
+          FK to dim_nn_state, joined on the state name as CDC WONDER spells
+          it, including 'District of Columbia'.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_state')
+                field: state_key
+      - name: mother_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_mother')
+                field: mother_key
+      - name: gender_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_nn_gender')
+                field: gender_key
+      - name: mother_attr_birth_count
+        data_tests: [not_null]
+      - name: total_birth_count
+        description: >
+          All births in the state, year and infant sex. Divide
+          mother_attr_birth_count by this for a share of all births.
+        data_tests: [not_null]
+      - name: wonder_vintage
+        description: CDC WONDER dataset the count came from, kept as a degenerate dimension.
+        data_tests: [not_null]
+
+  - name: dim_nn_name
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - name_key
+    columns:
+      - name: name_key
+        data_tests: [not_null, unique]
+      - name: name
+        data_tests: [not_null, unique]
+      - name: name_starting_letter
+        data_tests: [not_null]
+      - name: name_gender
+        description: >
+          Origins sources first, SSA usage as the fallback. The SSA value
+          goes by weight: the sex the name was given to more often, or
+          'either' when the split is within 10 points of even.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['male', 'female', 'either']
+      - name: total_name_count
+        data_tests: [not_null]
+      - name: total_name_count_1995_2025
+        description: Restricted to 1995-2025 to line up with the natality window.
+        data_tests: [not_null]
+
+  - name: dim_nn_state
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - state_key
+      - assert_state_coverage:
+          arguments:
+            state_column: state_code
+    columns:
+      - name: state_key
+        data_tests: [not_null, unique]
+      - name: state_code
+        data_tests: [not_null, unique]
+      - name: state_name
+        description: Must match CDC WONDER's spelling - the natality fact joins on it.
+        data_tests: [not_null, unique]
+      - name: state_starting_letter
+        data_tests: [not_null]
+      - name: region
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Northeast', 'Midwest', 'South', 'West']
+      - name: census_division
+        description: One of the nine Census divisions, nested inside `region`.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - New England
+                  - Middle Atlantic
+                  - East North Central
+                  - West North Central
+                  - South Atlantic
+                  - East South Central
+                  - West South Central
+                  - Mountain
+                  - Pacific
+
+  - name: dim_nn_year
+    description: >
+      Conformed across both sources. Built from the union of the SSA and CDC
+      year sets, because a year CDC reports and SSA has not published yet
+      would otherwise leave the natality fact with a null year_key.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - year_key
+      - assert_contiguous_years:
+          arguments:
+            year_column_text: year
+    columns:
+      - name: year_key
+        data_tests: [not_null, unique]
+      - name: year
+        data_tests: [not_null, unique]
+      - name: year_int
+        data_tests: [not_null, unique]
+      - name: decade
+        data_tests: [not_null]
+      - name: generation
+        data_tests: [not_null]
+      - name: source_coverage
+        description: Which source(s) contributed the year.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['both', 'names_only', 'natality_only']
+
+  - name: dim_nn_gender
+    description: >
+      Role-playing dimension. fct_nn_baby_names.gender_key means the gender
+      SSA recorded for the NAME; fct_nn_baby_natality.gender_key means the
+      infant's SEX AT BIRTH. Comparing the two is the point of the mart.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - gender_key
+    columns:
+      - name: gender_key
+        data_tests: [not_null, unique]
+      - name: gender
+        data_tests: [not_null, unique]
+
+  - name: dim_nn_mother
+    description: >
+      One row per (breakout, value) pair. The surrogate key hashes both, so
+      two breakouts sharing a value cannot collapse into one member.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - mother_key
+      - assert_grain:
+          arguments:
+            columns:
+              - mother_attr_label
+              - mother_attr_value
+    columns:
+      - name: mother_key
+        data_tests: [not_null, unique]
+      - name: mother_attr_label
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['age', 'edu', 'race', 'race_detail', 'hisp_origin', 'hisp_origin_detail']
+      - name: mother_attr_value
+        data_tests: [not_null]

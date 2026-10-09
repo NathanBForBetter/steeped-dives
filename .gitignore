@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Secrets and local configuration
+# ---------------------------------------------------------------------------
+# The committed contract is .env.example. .env itself holds a real Postgres
+# password and absolute paths to a local machine, and never goes to git.
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+# No raw or modeled data is committed. The sources are public (SSA, CDC
+# WONDER, BTS, BoardGameGeek) and the warehouses are local - see the README
+# section "The data is not in this repo".
+*.csv
+!flights_medallion/seeds/*.csv
+!*/dbt/seeds/*.csv
+*.tsv
+*.parquet
+*.zip
+*.gz
+*.txt
+!requirements.txt
+*.db
+*.duckdb
+*.sqlite3
+data/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# ---------------------------------------------------------------------------
+# dbt
+# ---------------------------------------------------------------------------
+# target/ and dbt_packages/ are build output: regenerate with `dbt deps`
+# and `dbt build`. logs/ reached 31MB in one project.
+target/
+dbt_packages/
+logs/
+# dbt writes a machine-local anonymous id here
+.user.yml
+# profiles.yml IS committed: it reads every value through env_var(), so it
+# carries no credentials and documents how to run each project.
+
+# ---------------------------------------------------------------------------
+# Local scratch
+# ---------------------------------------------------------------------------
+# Ad-hoc exploration queries. Kept on disk, deliberately not in the repo -
+# they are a thinking tool, not part of the model.
+scratch/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.Python
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------------
+# Spark / JVM
+# ---------------------------------------------------------------------------
+*.crc
+_SUCCESS
+hs_err_pid*.log
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

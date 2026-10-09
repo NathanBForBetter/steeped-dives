@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: int_board_games_category_vocabulary
+    description: >
+      Category transformation that feeds the sentence-transformer clustering
+      step run outside dbt. The clusters it produces are what the IN lists in
+      int_board_games_categories encode.
+    columns:
+      - name: category_raw
+        description: Part 1 of the key back to the source list.
+        data_tests: [not_null]
+      - name: category_type
+        description: >
+          Part 2 of the key back to the source list - 'sub_category',
+          'mechanism', or 'family_<prefix>' for the family_list slice.
+        data_tests: [not_null]
+      - name: category_formatted
+        description: Normalized term; the input to topic clustering.
+        data_tests: [not_null]
+      - name: game_count
+        description: Distinct games carrying the term, used to weight clusters.
+        data_tests: [not_null]
+
+  - name: int_board_games_categories
+    description: >
+      Four sparse BGG list columns collapsed into thirteen flat category
+      families, each with a _type (specific term), _cat (rolled-up bucket)
+      and _source (which of the four lists supplied the value). Readable and
+      joinable where a one-hot encoding of ~4k sparse flags would be neither.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - board_game_url
+    columns:
+      - name: board_game_url
+        description: >
+          Every game in stg_board_games gets a row, including games with no
+          categories at all.
+        data_tests: [unique, not_null]
+      - name: history_war_source
+        description: Provenance of history_war_cat - sub_cat | mech | family | main_cat.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['sub_cat', 'mech', 'family', 'main_cat']
+
+  - name: int_board_games_journey_metrics
+    description: >
+      Board game shopping journey metrics: the BGG user counts as reported,
+      plus the five funnel stages they add up to.
+    columns:
+      - name: board_game_url
+        data_tests: [unique, not_null]
+      - name: stage_purchase_intent_user_count
+        description: want_to_buy_user_count + wanting_user_count.
+      - name: stage_ownership_user_count
+        description: preordered_owner_count + owner_user_count.
+
+  - name: int_board_games_main_dims
+    description: Descriptive attributes per game, plus derived decade and top publishers.
+    columns:
+      - name: board_game_url
+        data_tests: [unique, not_null]
+      - name: scraped_at
+        description: >
+          scrape_date as a timestamp. The scd_board_game snapshot uses it as
+          updated_at, so each version is dated by the scrape it came from.
+        data_tests: [not_null]
+      - name: year_made_int
+        description: >
+          year_made cast to int with BGG's 0 "unknown" sentinel nulled out.
+          Negative years are real (Senet -3000, Go -2200) and are kept.
+      - name: decade
+        description: >
+          The decade as text, such as '1990s'. Null when year_made_int is
+          null.
+
+  - name: int_board_games_main_metrics
+    description: Ratings, counts and engagement metrics per game.
+    columns:
+      - name: board_game_url
+        data_tests: [unique, not_null]

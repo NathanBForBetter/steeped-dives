@@ -1,0 +1,309 @@
+version: 2
+
+models:
+  # --- Kimball core: one fact, thirteen category dimensions, one year dim ---
+  #
+  # The thirteen category dimensions hold one row per bucket produced by
+  # int_board_games_categories. The fact carries a foreign key to each one,
+  # null where a game has no bucket in that family, and also keeps the
+  # category values as text for the OBT mart. assert_grain plus a unique
+  # natural key on each dimension checks that the clustering produced one
+  # bucket per term.
+
+  - name: fct_board_games
+    description: >
+      One row per board game. Carries the conformed year foreign key, the
+      thirteen category families as degenerate text, and every metric and
+      journey measure. See the README section "Why the fact is wide".
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - board_game_url
+    columns:
+      - name: board_game_url
+        description: Natural key, BGG's canonical game url.
+        data_tests: [unique, not_null]
+      - name: scrape_date
+        description: The BGG scrape this snapshot came from. Constant within a build.
+        data_tests: [not_null]
+      - name: year_key
+        description: >
+          FK to dim_board_games_year. Never null. A game with no year on
+          BGG, or with BGG's 0 placeholder, points at the dimension's explicit
+          'unknown' member. BCE years are real members.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_year')
+                field: year_key
+      - name: history_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_history')
+                field: history_key
+      - name: fantasy_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_fantasy')
+                field: fantasy_key
+      - name: skill_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_skill')
+                field: skill_key
+      - name: attribute_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_attribute')
+                field: attribute_key
+      - name: component_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_component')
+                field: component_key
+      - name: politics_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_politics')
+                field: politics_key
+      - name: pop_culture_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_pop_culture')
+                field: pop_culture_key
+      - name: crime_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_crime')
+                field: crime_key
+      - name: industry_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_industry')
+                field: industry_key
+      - name: creature_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_creature')
+                field: creature_key
+      - name: transportation_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_transportation')
+                field: transportation_key
+      - name: sport_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_sport')
+                field: sport_key
+      - name: player_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_board_games_player')
+                field: player_key
+      - name: stage_purchase_intent_user_count
+        description: want_to_buy_user_count + wanting_user_count.
+      - name: stage_ownership_user_count
+        description: preordered_owner_count + owner_user_count.
+
+  - name: dim_board_games_year
+    description: >
+      One row per distinct year a game was published, including BCE years,
+      plus one explicit 'unknown' member so the fact never carries a null
+      foreign key.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - year_key
+    columns:
+      - name: year_key
+        data_tests: [not_null, unique]
+      - name: year_made_int
+        description: Null only on the single 'unknown' member.
+        data_tests:
+          - unique
+      - name: decade
+        description: "'unknown' on the unknown member, else e.g. '1990s' or '-3000s'."
+        data_tests: [not_null]
+      - name: era
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ce', 'bce', 'unknown']
+      - name: is_unknown_year
+        data_tests: [not_null]
+
+  - name: dim_board_games_attribute
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - attribute_key
+    columns:
+      - name: attribute_key
+        data_tests: [not_null, unique]
+      - name: attribute_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_component
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - component_key
+    columns:
+      - name: component_key
+        data_tests: [not_null, unique]
+      - name: component_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_creature
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - creature_key
+    columns:
+      - name: creature_key
+        data_tests: [not_null, unique]
+      - name: creature_animal_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_crime
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - crime_key
+    columns:
+      - name: crime_key
+        data_tests: [not_null, unique]
+      - name: crime_violence_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_fantasy
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - fantasy_key
+    columns:
+      - name: fantasy_key
+        data_tests: [not_null, unique]
+      - name: fantasy_adventure_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_history
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - history_key
+    columns:
+      - name: history_key
+        data_tests: [not_null, unique]
+      - name: history_war_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_industry
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - industry_key
+    columns:
+      - name: industry_key
+        data_tests: [not_null, unique]
+      - name: industry_occupation_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_player
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - player_key
+    columns:
+      - name: player_key
+        data_tests: [not_null, unique]
+      - name: player_audience_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_politics
+    description: >
+      Politics and government categories, one row per bucket.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - politics_key
+    columns:
+      - name: politics_key
+        data_tests: [not_null, unique]
+      - name: politics_gov_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_pop_culture
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - pop_culture_key
+    columns:
+      - name: pop_culture_key
+        data_tests: [not_null, unique]
+      - name: pop_culture_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_skill
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - skill_key
+    columns:
+      - name: skill_key
+        data_tests: [not_null, unique]
+      - name: skill_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_sport
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - sport_key
+    columns:
+      - name: sport_key
+        data_tests: [not_null, unique]
+      - name: sport_cat
+        data_tests: [not_null, unique]
+
+  - name: dim_board_games_transportation
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - transportation_key
+    columns:
+      - name: transportation_key
+        data_tests: [not_null, unique]
+      - name: transportation_travel_cat
+        data_tests: [not_null, unique]

@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: mart_board_games_steeped_obt
+    description: >
+      One Big Table for the Steeped AI platform. Grain is one row per board
+      game; the leading `board_game` column packs url, name and description
+      into one labeled text block because that is the entity the platform
+      profiles. Everything after it is a typed attribute or measure, so
+      cross-tabs and regressions run with no joins.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - board_game
+    columns:
+      - name: board_game
+        description: The entity Steeped AI profiles - url plus name plus description.
+        data_tests: [not_null, unique]
+      - name: year_made
+        description: >
+          Read from dim_board_games_year through year_key. Null only where
+          BGG has no usable year.
+      - name: is_unknown_year
+        description: >
+          True where year_made is null, so a time-series analysis can exclude
+          those rows explicitly rather than by guessing at the null.
+        data_tests: [not_null]

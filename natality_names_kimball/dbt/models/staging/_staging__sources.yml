@@ -1,0 +1,78 @@
+version: 2
+
+sources:
+  - name: national_names
+    description: >
+      Raw tables loaded from etl stage before this. dbt reads
+      these but never creates them, so they are sources rather than models.
+    schema: default
+    tables:
+      - name: nn_state_raw
+        description: Created from social security data. Updated from extract_names.py.
+        columns:
+          - name: name
+            description: Baby names for year + state. 
+            data_tests: [not_null]
+          - name: gender
+            description: Name gender from social security. 
+            data_tests: [not_null]
+          - name: year
+            description: Year name was given to baby.
+            data_tests: [not_null]
+          - name: state
+            description: State where name was given to a baby.
+            data_tests: [not_null]
+
+      - name: nn_origins_raw
+        description: Raw url data from BehindTheName. Updated from extract_origins_btn.py.
+        columns:
+          - name: nll
+            description: Main name from btn.
+            data_tests: [not_null]
+      
+      - name: nn_ancestry_raw
+        description: Raw url data from ancestry.com. Updated from extract_origins_ancestry.py.
+        columns:
+          - name: name
+            description: First name.
+            data_tests: [unique, not_null]
+
+      - name: nn_natality_raw_age
+        description: Raw age data from CDC Natality data. Updated from extract_natality.py.
+        columns:
+          - name: state 
+            data_tests: [not_null]
+          - name: year 
+            data_tests: [not_null]
+          - name: age_of_mother
+            data_tests: [not_null]
+      
+      - name: nn_natality_raw_edu
+        description: Raw education data from CDC Natality data. Updated from extract_natality.py.
+        columns:
+          - name: state 
+            data_tests: [not_null]
+          - name: year 
+            data_tests: [not_null]
+          - name: mothers_education
+            data_tests: [not_null]
+
+      - name: nn_natality_raw_hisp
+        description: Raw hispanic origin data from CDC Natality data. Updated from extract_natality.py.
+        columns:
+          - name: state 
+            data_tests: [not_null]
+          - name: year 
+            data_tests: [not_null]
+          - name: mothers_hispanic_origin
+            data_tests: [not_null]
+
+      - name: nn_natality_raw_race
+        description: Raw race data from CDC Natality data. Updated from extract_natality.py.
+        columns:
+          - name: state 
+            data_tests: [not_null]
+          - name: year 
+            data_tests: [not_null]
+          - name: mothers_race
+            data_tests: [not_null]

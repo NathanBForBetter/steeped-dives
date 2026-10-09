@@ -1,0 +1,41 @@
+name: steeped_natality_names
+version: "1.0.0"
+config-version: 2
+
+profile: steeped_natality_names
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+clean-targets: ["target", "dbt_packages", "logs"]
+
+# Namespace that adapter.dispatch() searches for the <adapter>__ variants of
+# this project's own macros (see macros/safe_divide.sql).
+dispatch:
+  - macro_namespace: steeped_macros
+    search_order: ["steeped_natality_names"]
+
+seeds:
+  steeped_natality_names:
+    # Pinned so a code column is never left to the seed loader's type sniffing.
+    +column_types:
+      state_code: string
+
+models:
+  # This key has to match the project `name` above. If it does not, dbt
+  # applies none of the settings below and every model builds as a view.
+  steeped_natality_names:
+    staging:
+      +materialized: view
+
+    intermediate:
+      +materialized: table
+
+    core:
+      +materialized: table
+
+    marts:
+      +materialized: table

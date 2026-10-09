@@ -1,0 +1,53 @@
+## dbt profile for the same local Spark SQL setup as spark_session.py.
+##
+## method: session runs Spark inside dbt's own process - there is no thrift
+## server here to connect to. The Derby metastore admits one process at a
+## time, so no extract script may hold a session while dbt runs, or dbt will
+## block on the metastore lock.
+##
+## Needs the adapter:  pip install "dbt-spark[session]"
+## Needs java on the path, and dbt will NOT set it for you the way
+## spark_session.py does - so export the repo .env before running:
+##
+##     cd natality_names_kimball/dbt
+##     set -a; source ../../.env; set +a
+##     echo "$JAVA_HOME" "$NATALITY_DATA_DIR"      # confirm
+##     dbt deps && dbt build
+##
+## Every path below is read from that .env, so this file is machine-agnostic
+## and safe to commit. See .env.example for the contract.
+
+steeped_natality_names:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: session
+      session_properties:
+        spark.sql.pyspark.jvmStacktrace.enabled: "true"
+
+      ## the adapter validates host as required even though the session
+      ## method never dials out - this value is a placeholder
+      host: localhost
+
+      ## every nn_* table was written with saveAsTable, so they all live in
+      ## the default database
+      schema: default
+
+      ## one session against one Derby metastore - raise only if you move
+      ## off Derby
+      threads: 1
+
+      ## handed to SparkSession.builder.config() before getOrCreate(), so
+      ## these mirror get_spark() in spark_session.py
+      ## values are quoted because the adapter types this as Dict[str, str]
+      server_side_parameters:
+        "spark.master": "{{ env_var('NATALITY_SPARK_MASTER', 'local[4]') }}"
+        "spark.sql.shuffle.partitions": "{{ env_var('NATALITY_SPARK_SHUFFLE_PARTITIONS', '8') }}"
+        "spark.driver.bindAddress": "127.0.0.1"
+        "spark.driver.host": "127.0.0.1"
+        ## the warehouse and metastore the extract scripts write to
+        "spark.sql.warehouse.dir": "{{ env_var('NATALITY_DATA_DIR') }}/spark-warehouse"
+        "spark.hadoop.javax.jdo.option.ConnectionURL": "jdbc:derby:;databaseName={{ env_var('NATALITY_DATA_DIR') }}/metastore_db;create=true"
+        ## keeps derby.log out of whatever directory dbt was run from
+        "spark.driver.extraJavaOptions": "-Dderby.system.home={{ env_var('NATALITY_DATA_DIR') }}"

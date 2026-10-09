@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: board_games_raw
+    description: >
+      Raw tables loaded from etl stage before this. dbt reads
+      these but never creates them, so they are sources rather than models.
+    schema: public
+    tables:
+      - name: board_game_filtered
+        description: Created from boardgame geek pull from search results. Updated from discover.py.
+        columns:
+          - name: board_game_url
+            description: Unique url for the game.
+            data_tests: [unique, not_null]
+          - name: board_game_name
+            description: The name of the game.
+            data_tests: [not_null]
+
+      - name: board_game_scrape
+        description: Copious amount of details about the game from its page.
+        columns:
+          - name: board_game_url
+            data_tests: [unique, not_null]

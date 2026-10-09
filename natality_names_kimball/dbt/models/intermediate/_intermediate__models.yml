@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: int_nn_baby_names
+    description: >
+      SSA state-level names, one row per state + gender + year + name, with
+      the calendar and geography attributes the dimensions are built from.
+      `gender` is the gender SSA recorded for the NAME, not the infant's sex.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - state
+              - gender
+              - year
+              - name
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: gender
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['male', 'female']
+      - name: year
+        data_tests: [not_null]
+      - name: name
+        data_tests: [not_null]
+      - name: name_count
+        data_tests: [not_null]
+      - name: state_name
+        description: Spelled the way CDC WONDER spells it, including 'District of Columbia'.
+        data_tests: [not_null]
+      - name: decade
+        description: Computed from the year, so a new decade needs no upkeep.
+        data_tests: [not_null]
+
+  - name: int_nn_natality
+    description: >
+      The four CDC WONDER mother-attribute breakouts on one long grain. Race
+      and Hispanic origin each appear twice: a bridged value that is
+      comparable across every vintage (race, hisp_origin) and the finer
+      groups only some vintages report (race_detail, hisp_origin_detail). If
+      a final and a provisional extract ever cover the same year, the final
+      one wins.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - state
+              - year
+              - infant_gender
+              - mother_attr_label
+              - mother_attr_value
+    columns:
+      - name: state
+        data_tests: [not_null]
+      - name: year
+        description: >
+          The ' (Provisional)' suffix is stripped so provisional years still
+          join to dim_nn_year.
+        data_tests: [not_null]
+      - name: mother_attr_label
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['age', 'edu', 'race', 'race_detail', 'hisp_origin', 'hisp_origin_detail']
+      - name: mother_attr_birth_count
+        data_tests: [not_null]
+      - name: total_birth_count
+        description: >
+          All births in the state, year and infant sex, from the age breakout,
+          which excludes nothing. Divide an attribute count by this for its
+          share of all births.
+        data_tests: [not_null]
+      - name: source
+        description: The WONDER dataset vintage, and so the taxonomy, the row follows.
+        data_tests: [not_null]
+
+  - name: int_nn_origins
+    description: >
+      One row per name, merging BehindTheName and the Ancestry first-name
+      pages, with origins and variants ranked so the most widely-shared one
+      can be read off without a join.
+    columns:
+      - name: name
+        data_tests: [not_null, unique]
+      - name: origin_count
+        description: >
+          Distinct origins across both sources. A name found in only one
+          source is counted from that source alone.
+      - name: main_origin
+        description: The top-ranked origin, as a string.
+      - name: name_gender
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['male', 'female', 'either']

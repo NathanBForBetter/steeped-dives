@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: stg_board_games
+    description: >
+      The ranked-search half of the BGG pull joined to the per-game page half,
+      one row per game. Numeric columns arrive as text and go through
+      mixed_int_cast() so a blank or 'N/A' becomes NULL instead of aborting
+      the model; text list columns are passed through for the intermediate
+      layer to unnest.
+    columns:
+      - name: board_game_url
+        description: Unique url of the game; the grain of every model downstream.
+        data_tests: [unique, not_null]
+      - name: board_game_name
+        data_tests: [not_null]
+      - name: year_made
+        description: >
+          Raw text from BGG. 0 means "unknown" and negative values are real
+          BCE publication years; int_board_games_main_dims resolves both.
