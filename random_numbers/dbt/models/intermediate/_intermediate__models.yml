@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: int_random_num_combine
+    description: >
+      Picks per number and source, with each number's share of its source's
+      picks. All 100 numbers are present for all three sources, so a number a
+      source never picked has a row with a count of 0.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - number_chosen
+              - source
+    columns:
+      - name: number_chosen
+        data_tests: [not_null]
+      - name: source
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ai', 'people', 'computer']
+      - name: number_tens_range
+        description: >
+          The tens the number falls in, such as '40s' for 40 to 49. '0s' is 1
+          to 9 and '100s' is 100 alone, so the ranges are not all the same
+          size.
+        data_tests: [not_null]
+      - name: choice_count
+        description: How many times the source picked the number. 0 if never.
+        data_tests: [not_null]
+      - name: choice_count_share
+        description: choice_count as a percent of the source's picks.
+        data_tests: [not_null]

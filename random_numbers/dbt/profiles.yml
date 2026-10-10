@@ -1,0 +1,33 @@
+## dbt profile for the local DuckDB file that random_num_build.py writes.
+##
+## DuckDB runs inside dbt's own process, so there is no server to start and
+## no credentials. A DuckDB file admits one writing process at a time, so
+## random_num_build.py and any other client holding the file open have to be
+## finished before dbt runs, or dbt will fail on the file lock.
+##
+## Needs the adapter:  pip install dbt-duckdb
+##
+##     cd random_numbers/dbt
+##     set -a; source ../../.env; set +a
+##     echo "$RANDOM_DATA_DIR" "$RANDOM_DL_DATE"      # confirm
+##     dbt deps && dbt build
+##
+## The path below is read from that .env, so this file is machine-agnostic
+## and safe to commit. See .env.example for the contract.
+
+steeped_random_num:
+  target: dev
+
+  outputs:
+    dev:
+      type: duckdb
+
+      ## the same file random_num_build.py connects to, so the name here has
+      ## to match duckdb_file in that script
+      path: "{{ env_var('RANDOM_DATA_DIR') }}/random_numbers.duckdb"
+
+      ## the random_num_*_raw tables were created with no schema given, so
+      ## they live in DuckDB's default schema
+      schema: main
+
+      threads: 4

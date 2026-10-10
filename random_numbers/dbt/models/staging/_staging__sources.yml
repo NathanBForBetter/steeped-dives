@@ -1,0 +1,49 @@
+version: 2
+
+sources:
+  - name: random_num_raw
+    description: >
+      Raw tables that random_num_build.py loads from CSV, every column as
+      text. dbt reads them and never creates them, so they are sources and
+      not models.
+    schema: main
+    tables:
+      - name: random_num_true_raw
+        description: >
+          10,000 numbers from 1 to 100 written by true_random.py. It draws
+          bytes from the operating system's random source and uses rejection
+          sampling, so every number is equally likely.
+        columns:
+          - name: timestamp
+            description: When the number was drawn.
+            data_tests: [unique, not_null]
+          - name: number
+            description: The number drawn.
+            data_tests: [not_null]
+
+      - name: random_num_ai_raw
+        description: >
+          A public dataset of 10,000 calls that asked GPT-4.1 to pick a random
+          number from 1 to 100, shared in a Reddit post.
+        columns:
+          - name: Iteration
+            data_tests: [unique, not_null]
+          - name: Timestamp
+            data_tests: [unique, not_null]
+          - name: Number_Chosen
+            data_tests: [not_null]
+          - name: Status
+            data_tests: [not_null]
+          - name: Model
+            data_tests: [not_null]
+
+      - name: random_num_people_raw
+        description: >
+          6,981 people asked through a Google Form to pick a random number
+          from 1 to 100. Collected by a Redditor about nine years ago, before
+          AI assistants.
+        columns:
+          - name: id
+            data_tests: [unique, not_null]
+          - name: number
+            data_tests: [not_null]

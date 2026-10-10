@@ -2,21 +2,24 @@
 
 This repository holds the data models behind [Steeped Dives](https://steeped.ai/resources/), the articles I publish on open datasets. I'm sharing the modeling and transformations in full so readers can check the work and tell me where it could be better.
 
-There are three pipelines. Each one takes a public dataset, models it, and ends in a One Big Table that the [Steeped AI](https://steeped.ai) platform profiles and analyzes. The numbers in each article come from these models. If a grain, a crosswalk or a denominator looks wrong, please open an issue.
+There are four pipelines. Each one takes a public dataset and models it. Three end in a One Big Table that the [Steeped AI](https://steeped.ai) platform profiles and analyzes, and the fourth ends in a set of analytical marts. The numbers in each article come from these models. If a grain, a crosswalk or a denominator looks wrong, please open an issue.
 
-| Project | Source | Engine | Orchestration | Architecture | Scale | Grain |
+<!-- GitHub sizes table columns by their content. The &nbsp; runs in the header set a minimum width for the last three columns. -->
+
+| Project | Source | Engine | Orchestration | Architecture&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Scale&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Grain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
 |---|---|---|---|---|---|---|
 | [`board_games/`](board_games) | [BoardGameGeek](https://boardgamegeek.com) rankings and game pages | PostgreSQL | dbt | dbt layers, Kimball core, OBT mart | 140,107 games | one game |
 | [`natality_names_kimball/`](natality_names_kimball) | [SSA baby names](https://www.ssa.gov/oact/babynames/limits.html), [CDC WONDER natality](https://wonder.cdc.gov/natality.htm), name origin references | Spark SQL (Hive, Derby metastore) | dbt (`dbt-spark`, session method) | Kimball: two facts, five conformed dimensions, OBT mart | 6.7M name rows across 51 states and 116 years | a name and gender in a state and year; births by state, year and mother attribute |
 | [`flights_medallion/`](flights_medallion) | [BTS On-Time Performance](https://www.transtats.bts.gov/ontime/) | Spark SQL | Python and Spark SQL, following dbt conventions by hand | Medallion (bronze, silver, gold), Kimball core, OBT mart | 17.6M flights | one flight |
+| [`random_numbers/`](random_numbers) | [ChatGPT](https://github.com/exmergo/research-chatgpt-guesses-between-1-and-100) and [people](https://www.reddit.com/r/dataisbeautiful/comments/88m2mj/pick_a_number_from_1100_results_from_6750/) picking a number from 1 to 100, and a true random sample | DuckDB | dbt (`dbt-duckdb`) | dbt layers, Kimball core, four analytical marts | 26,981 picks | one number and source |
 
-About 6,800 lines of SQL, Python and YAML. The two dbt projects have 282 tests across 41 models, one snapshot and one seed: 159 `not_null`, 54 `unique`, 28 grain, 22 referential integrity, 14 `accepted_values`, 3 completeness and 2 singular. The flights pipeline has no dbt, so it has 29 hand-written assertions of the same kinds.
+About 7,900 lines of SQL, Python and YAML. The three dbt projects have 351 tests across 51 models, one snapshot and one seed: 200 `not_null`, 65 `unique`, 35 grain, 23 referential integrity, 17 `accepted_values`, 5 range, 3 completeness and 3 singular. The flights pipeline has no dbt, so it has 29 hand-written assertions of the same kinds.
 
 ---
 
 ## Table of contents
 
-- [Why three architectures instead of one](#why-three-architectures-instead-of-one)
+- [Why different architectures instead of one](#why-different-architectures-instead-of-one)
 - [Slowly changing dimensions: Type 2 on board games](#slowly-changing-dimensions-type-2-on-board-games)
 - [The data is not in this repo](#the-data-is-not-in-this-repo)
 - [Testing](#testing)
@@ -37,9 +40,9 @@ About 6,800 lines of SQL, Python and YAML. The two dbt projects have 282 tests a
 
 ---
 
-## Why three architectures instead of one
+## Why different architectures instead of one
 
-The three datasets have different shapes, so the three projects are modeled differently. Forcing one pattern onto all of them would have made the repo easier to read and the models worse.
+The datasets have different shapes, so the projects are modeled differently. Forcing one pattern onto all of them would have made the repo easier to read and the models worse.
 
 **`natality_names_kimball` is the closest to textbook Kimball.** It has two facts (`fct_nn_baby_names`, `fct_nn_baby_natality`) over five conformed dimensions. It gets a full star because it is the only project where two independent sources have to be compared. SSA name counts and CDC birth counts share state, year and gender and nothing else, and conformed dimensions turn that comparison into a join. It runs on Spark because the names grain is state by year by name across 116 years.
 
@@ -49,9 +52,11 @@ There is no dbt in this project. It follows dbt's conventions by hand in Spark S
 
 **`board_games` is dbt layers around a Kimball core.** It covers 140,107 games described by about 4,000 sparse category terms spread over four list columns. Most of the work is turning those terms into categories that can be analyzed. So staging is thin, the intermediate layer is heavy, and the core exists mainly to prove the category grains are clean. It runs on Postgres because 140k rows do not need a cluster, and `UNNEST`, array aggregation and regex are easier there.
 
+**`random_numbers` is dbt layers and a small Kimball core that ends in analytical marts.** It compares how ChatGPT, people and a true random generator pick a number from 1 to 100, and it is the model behind [People are 4x more random than ChatGPT when picking 1-100](https://steeped.ai/people-are-4x-more-random-than-chatgpt-when-picking-1-100/). The data has very few columns: a number, who picked it and how many times. Because of that I went with a more traditional analytical mart approach, and four dbt marts hold the analysis, instead of an OBT for Steeped to handle the analytical layer. It runs on DuckDB because three small CSVs do not need a server.
+
 ### What they share
 
-All three go from `stg_` to `int_` to `dim_` and `fct_` to `mart_*_steeped_obt`, and test the grain along the way.
+All four go from `stg_` to `int_` to `dim_` and `fct_` to `mart_`, and test the grain along the way.
 
 ---
 
@@ -88,7 +93,7 @@ Only one scrape has been taken, so every game has one version today. To check th
 
 ## The data is not in this repo
 
-No raw or modeled data is committed. It lives in a local Postgres instance and two local Spark warehouses, outside this directory. [`.env.example`](.env.example) lists the paths the code expects.
+No raw or modeled data is committed. It lives in a local Postgres instance, two local Spark warehouses and a DuckDB file, outside this directory. [`.env.example`](.env.example) lists the paths the code expects.
 
 That means nobody else can run these pipelines as they stand. The sources are public and each project documents where its data came from, but the tables themselves are not available and in most cases will not be shared. The BTS extract alone is tens of gigabytes, and some of the reference data came with terms that do not allow redistribution.
 
@@ -98,13 +103,13 @@ If you want schemas, row counts or profiling output, or want to talk through a d
 
 The scripts that make live HTTP requests, the BoardGameGeek scraper and the Ancestry name origin scraper, are in a private repo. They rate limit, stop when a site pushes back, check `robots.txt` and can resume an interrupted run. They also send a browser User-Agent, and one of them fetches from a site whose terms do not allow automated collection, so I kept them out of a public modeling repo.
 
-The tables they produce (`board_game_raw`, `board_game_discovered`, `board_game_scrape`, `nn_ancestry_raw`) are declared as dbt sources. The extractors that read public government downloads from disk are here: [`extract_names.py`](natality_names_kimball/extract_names.py), [`extract_natality.py`](natality_names_kimball/extract_natality.py), [`extract_origins_btn.py`](natality_names_kimball/extract_origins_btn.py) and [`01_ingest_to_bronze.py`](flights_medallion/01_ingest_to_bronze.py).
+The tables they produce (`board_game_raw`, `board_game_discovered`, `board_game_scrape`, `nn_ancestry_raw`) are declared as dbt sources. The extractors that read public government downloads from disk are here: [`extract_names.py`](natality_names_kimball/extract_names.py), [`extract_natality.py`](natality_names_kimball/extract_natality.py), [`extract_origins_btn.py`](natality_names_kimball/extract_origins_btn.py) and [`01_ingest_to_bronze.py`](flights_medallion/01_ingest_to_bronze.py). [`random_num_build.py`](random_numbers/random_num_build.py) loads the random number CSVs the same way.
 
 ---
 
 ## Testing
 
-There are 282 dbt tests and 29 Spark assertions. The ones I rely on most check a rule about the data, not a property of a single column.
+There are 351 dbt tests and 29 Spark assertions. The ones I rely on most check a rule about the data, not a property of a single column.
 
 ### Grain
 
@@ -122,7 +127,7 @@ I wrote [`assert_grain`](natality_names_kimball/dbt/tests/generic/assert_grain.s
 
 ### Referential integrity
 
-There are 22 `relationships` tests in dbt and three written by hand for Spark:
+There are 23 `relationships` tests in dbt and three written by hand for Spark:
 
 ```python
 st.test_relationship(spark, 'fct_flights', 'route_key', 'dim_flight_routes', 'route_key')
@@ -151,6 +156,8 @@ if fact != mart:
 
 A mart grouped by ten columns is an easy place for a join to duplicate rows, and a count is the cheapest way to find out.
 
+`random_numbers` has the same kind of check in dbt. [`assert_fct_random_num_reconciles`](random_numbers/dbt/tests/assert_fct_random_num_reconciles.sql) fails if a source is missing any of the 100 numbers, if its picks in the fact do not match its rows in staging, or if its shares do not add up to 100.
+
 ### De-duplicated rows exist in the source
 
 `rows_are_real` checks that every row left after de-duplication exists, column for column, in the table it came from:
@@ -175,7 +182,7 @@ python flights_medallion/06_run_data_tests.py --fail-fast
 
 ## Macros
 
-There are five.
+There are six.
 
 **[`safe_divide`](board_games/dbt/macros/safe_divide.sql)** returns `NULL` when the denominator is zero or null. It uses `adapter.dispatch` because the repo runs on two warehouses. Postgres raises `division_by_zero` and Spark has `try_divide`, so one macro name gives the right behavior on both:
 
@@ -193,6 +200,8 @@ There are five.
 **[`format_category`](board_games/dbt/macros/format_category.sql)** turns a BGG term into a lookup key in six steps: lowercase, slashes written out as "or", parentheses, colons and the words "game" and "games" removed, hyphens to spaces, runs of spaces collapsed, and a trim. `Card Game` becomes `card` and `Trick-taking` becomes `trick taking`. The vocabulary model and the categories model both call it, so a term has the same key where it is clustered and where it is looked up.
 
 **[`array_agg_order_by`](natality_names_kimball/dbt/macros/array_agg_order_by.sql)** stands in for `ARRAY_AGG(x ORDER BY y)`, which Spark does not have. It builds `sort_array(collect_list(struct(...)))` and names the struct fields `sort_key` and `value`, so the caller reads `[0].value` and gets the value, not a struct.
+
+**[`divergence_aggs`](random_numbers/dbt/macros/divergence_aggs.sql)** returns the total variation distance and the Jensen-Shannon divergence between two share columns. It is built from three small helpers, and each one wraps what it returns in parentheses. A macro pastes text into the SQL, so a helper that returns `0.5 * (p + q)` bare would be split apart when the caller divides by it.
 
 **`dbt_utils.generate_surrogate_key`** builds every dimension key, so hashing is consistent and handles nulls the same way everywhere.
 
@@ -222,7 +231,7 @@ The model starts from a list of every game and left joins the four lists to it, 
 
 ### Why the mart is One Big Table
 
-Every pipeline ends in `mart_*_steeped_obt`, a wide table with repeated values in it. The usual worry about that shape is that someone sums a repeated measure and gets a wrong number.
+Three of the four pipelines end in `mart_*_steeped_obt`, a wide table with repeated values in it. The usual worry about that shape is that someone sums a repeated measure and gets a wrong number.
 
 The table is built for Steeped AI, a platform I built that takes a dataset and builds an analytical model over it: typed, multi-grain PostgreSQL tables, profiling, cross-tabulation, regression and AI-guided analysis. It works out the grain of each column and aggregates with that in mind, so the platform handles the repeated values. A star schema leaves the grain to whoever writes the query. That is fine for an analyst and risky for everyone else. I built the platform so that someone who is not an analyst can upload a dataset and not get a wrong answer.
 
@@ -230,11 +239,13 @@ So the mart gives the platform every attribute combination as a row, with no joi
 
 The star schema is still there. Each mart is built from the conformed, tested models in `core/`.
 
+`random_numbers` is the exception. Its data has very few columns, so there is little for the platform to profile. I went with a more traditional analytical mart approach there, and [four dbt marts](random_numbers/README.md#marts) hold the analysis instead of an OBT for Steeped to handle the analytical layer.
+
 ### Why the fact is wide
 
 `fct_board_games` carries each of the 13 category families twice, as a surrogate key and as text.
 
-The keys each have a `relationships` test to their dimension, so a category that is in the fact and missing from its dimension fails the build. Those are 13 of the 22 referential integrity tests. The text is there because the fact's only consumer is the OBT. Joining 13 dimensions to get the same text back would cost 13 joins and save almost nothing at 140k rows.
+The keys each have a `relationships` test to their dimension, so a category that is in the fact and missing from its dimension fails the build. Those are 13 of the 23 referential integrity tests. The text is there because the fact's only consumer is the OBT. Joining 13 dimensions to get the same text back would cost 13 joins and save almost nothing at 140k rows.
 
 ### Name gender is not birth sex
 
@@ -257,13 +268,14 @@ SSA counts boys and girls separately, so a name given to both in a state and yea
 
 ### Every fact says which extract it came from
 
-All three pipelines are snapshots, and each one records which snapshot it is. `scrape_date` (board games) and `extract_date` (natality, flights) are set in `.env`, carried through staging, intermediate, fact and mart, and tested `not_null` on the facts:
+All four pipelines are snapshots, and each one records which snapshot it is. `scrape_date` (board games), `extract_date` (natality, flights) and `dl_date` (random numbers) are set in `.env`, carried through staging, intermediate and fact, and tested `not_null` on the facts. The three OBT marts carry the date too:
 
 ```
 # .env
 BOARD_GAMES_SCRAPE_DATE=2026-09-23
 FLIGHTS_EXTRACT_DATE=2026-10-05
 NATALITY_EXTRACT_DATE=2026-10-02
+RANDOM_DL_DATE=2026-08-10
 ```
 
 They come from the environment, not from `current_date()`, so rebuilding the same extract gives the same value. Otherwise the column would date the build and not the data.
@@ -348,6 +360,7 @@ Education is mapped onto five levels found in every vintage. Each count keeps it
 - **Education from 2003 to 2015.** States adopted the 2003 birth certificate in different years, and WONDER excludes a state's births from the education breakout in the years its certificate does not match the dataset. `stg_nn_natality_edu` leaves those 177 state and year pairs out, so they have no education rows. Education covers 47% of US births in 2006, 49% in 2007 and 99% from 2016 on.
 - **Flight key.** `flight_id` leaves out the flight number, as described in [The flight grain key](#the-flight-grain-key).
 - **Date spine range.** The spine runs from the first flight date to the last, so a missing file at either end is not flagged.
+- **Random baseline.** The true random baseline in `random_numbers` is a sample of 10,000 draws, so each distance from it includes sampling noise. The [project README](random_numbers/README.md#known-limitations) has the figures.
 
 ---
 
@@ -362,7 +375,7 @@ pip install -r requirements.txt  # or `pip install -e .` to install the config p
 cp .env.example .env             # then fill in paths and PGPASSWORD
 ```
 
-Everything specific to a machine lives in one root `.env`. [`steeped_dives/config.py`](steeped_dives/config.py) finds it from any directory and fails at startup on a missing variable or a path that does not exist. Both dbt projects read the same file through `env_var()`, so their `profiles.yml` holds no credentials and is committed.
+Everything specific to a machine lives in one root `.env`. [`steeped_dives/config.py`](steeped_dives/config.py) finds it from any directory and fails at startup on a missing variable or a path that does not exist. All three dbt projects read the same file through `env_var()`, so their `profiles.yml` holds no credentials and is committed.
 
 Each entry point script adds the repo root to `sys.path` before importing `steeped_dives`, so the scripts run straight from a clone without an install.
 
@@ -388,6 +401,13 @@ python flights_medallion/03_silver_intermediate.py   # int_flights and 5 subject
 python flights_medallion/04_gold_core.py             # Kimball star
 python flights_medallion/05_gold_mart.py             # OBT
 python flights_medallion/06_run_data_tests.py        # all assertions
+
+# random_numbers (DuckDB + dbt)
+#   A DuckDB file takes one writer at a time, so the load has to finish
+#   before dbt starts.
+python random_numbers/random_num_build.py
+cd random_numbers/dbt && set -a && source ../../.env && set +a
+dbt deps && dbt build
 ```
 
 ---
@@ -427,22 +447,34 @@ SteepedDives/
 │           ├── core/                2 facts + 5 conformed dims
 │           └── marts/               mart_nn_combined_steeped_obt
 │
-└── flights_medallion/               Spark SQL, dbt conventions by hand
-    ├── 01_ingest_to_bronze.py       zips -> Hive-partitioned Parquet
-    ├── 02_silver_staging.py         typed columns, flight grain key
-    ├── 03_silver_intermediate.py    de-duplicated flights and 5 subject views
-    ├── 04_gold_core.py              Kimball star with a date spine
-    ├── 05_gold_mart.py              OBT
-    ├── 06_run_data_tests.py         all assertions, runnable by layer
-    ├── spark_data_tests.py          unique, not_null, grain, relationships, accepted_values, rows_are_real
-    └── seeds/                       flight_calendar_events.csv, us_states.csv
+├── flights_medallion/               Spark SQL, dbt conventions by hand
+│   ├── 01_ingest_to_bronze.py       zips -> Hive-partitioned Parquet
+│   ├── 02_silver_staging.py         typed columns, flight grain key
+│   ├── 03_silver_intermediate.py    de-duplicated flights and 5 subject views
+│   ├── 04_gold_core.py              Kimball star with a date spine
+│   ├── 05_gold_mart.py              OBT
+│   ├── 06_run_data_tests.py         all assertions, runnable by layer
+│   ├── spark_data_tests.py          unique, not_null, grain, relationships, accepted_values, rows_are_real
+│   └── seeds/                       flight_calendar_events.csv, us_states.csv
+│
+└── random_numbers/                  DuckDB + dbt
+    ├── true_random.py               true random sample from os.urandom, with a randomness check
+    ├── random_num_build.py          CSVs -> raw DuckDB tables
+    └── dbt/
+        ├── macros/                  divergence_aggs
+        ├── tests/                   assert_grain, one singular reconciliation test
+        └── models/
+            ├── staging/             3 models, one per source
+            ├── intermediate/        picks per number and source on a full spine
+            ├── core/                fct + number dim
+            └── marts/               4 analytical marts
 ```
 
 ---
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The models are yours to borrow. The data belongs to SSA, CDC, BTS and BoardGameGeek under their own terms, and none of it is in this repo.
+MIT. See [LICENSE](LICENSE). The models are yours to borrow. The data belongs to SSA, CDC, BTS, BoardGameGeek and the authors of the two random number datasets under their own terms, and none of it is in this repo.
 
 ## Feedback
 
