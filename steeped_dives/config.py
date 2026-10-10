@@ -1,6 +1,6 @@
 """Single entry point for local configuration.
 
-Every path and credential the three pipelines need lives in one .env at the
+Every path and credential the pipelines need lives in one .env at the
 repo root. This module finds that file no matter which directory a script was
 launched from, loads it once, and hands values back with a loud failure when
 one is missing - so a typo surfaces at startup instead of as an empty Spark

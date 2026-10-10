@@ -1,0 +1,123 @@
+version: 2
+
+models:
+  - name: mart_random_num_bias
+    description: >
+      The 15 numbers ChatGPT and people each picked most above and most below
+      the true random baseline.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - source
+              - source_label
+              - number_chosen
+    columns:
+      - name: source
+        data_tests: [not_null]
+      - name: number_chosen
+        data_tests: [not_null]
+      - name: extra_share_points
+        description: The source's share minus the true random share, in share points.
+      - name: times_vs_random
+        description: >
+          The source's share divided by the true random share. 0 where the
+          source never picked the number.
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['over-picked', 'under-picked']
+
+  - name: mart_random_num_diff_patterns
+    description: >
+      Each source's share of picks by tens range, by even or odd, and by last
+      digit, with the difference between each pair of sources.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - pattern
+              - pattern_type
+    columns:
+      - name: pattern
+        data_tests: [not_null]
+      - name: pattern_type
+        data_tests: [not_null]
+      - name: ai_vs_computer_diff
+        description: ChatGPT's share minus the true random share, in share points.
+      - name: people_vs_computer_diff
+        description: People's share minus the true random share, in share points.
+      - name: ai_vs_people_diff
+        description: ChatGPT's share minus people's share, in share points.
+
+  - name: mart_random_num_diff
+    description: >
+      One row per number with each source's share of picks side by side, and
+      the difference between each pair of sources.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - number_chosen
+    columns:
+      - name: number_chosen
+        data_tests: [not_null, unique]
+      - name: ai_vs_computer_diff
+        description: ChatGPT's share minus the true random share, in share points.
+      - name: people_vs_computer_diff
+        description: People's share minus the true random share, in share points.
+      - name: ai_vs_people_diff
+        description: ChatGPT's share minus people's share, in share points.
+
+  - name: mart_random_num_divergence
+    description: >
+      How far apart two sources' distributions are, one row per pair of
+      sources. The pair with 'computer' in it is a source's distance from
+      true random.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - source_1
+              - source_2
+    columns:
+      - name: source_1
+        data_tests: [not_null]
+      - name: source_2
+        data_tests: [not_null]
+      - name: total_abs_diff
+        description: Sum of the absolute share differences over all 100 numbers, in share points.
+      - name: divergence_perc
+        description: >
+          Total variation distance as a percent. 0 means the two sources pick
+          identically and 100 means they never pick the same number.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: js_divergence
+        description: Jensen-Shannon divergence, base 2. 0 is identical and 1 is no overlap.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: avg_abs_diff
+        description: Mean absolute share difference per number.
+      - name: max_abs_diff
+        description: The largest absolute share difference for a single number.
+      - name: number_at_max_diff
+        description: The number where the two sources differ most.
+        data_tests: [not_null]
+      - name: times_further_from_random_than_people_tvd
+        description: >
+          The pair's total variation distance divided by the distance between
+          people and true random. Filled on the pairs that include true
+          random: about 4 on the ChatGPT row and 1 on the people row. Null on
+          the ChatGPT and people pair.
+      - name: times_further_from_random_than_people_jsd
+        description: The same ratio on Jensen-Shannon divergence.

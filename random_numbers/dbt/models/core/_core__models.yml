@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: fct_random_num
+    description: >
+      One row per number and source: how often that source picked that
+      number. 300 rows, 100 numbers for each of the three sources.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - number_key
+              - source
+    columns:
+      - name: number_key
+        description: FK to dim_random_num_chosen.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_random_num_chosen')
+                field: number_key
+      - name: source
+        description: Who picked. 'ai' is ChatGPT, 'people' is the form responses, 'computer' is true random.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ai', 'people', 'computer']
+      - name: dl_date
+        description: The date the three source files were downloaded or generated.
+        data_tests: [not_null]
+      - name: choice_count
+        description: How many times the source picked the number. 0 if never. Additive.
+        data_tests: [not_null]
+      - name: choice_count_share
+        description: >
+          choice_count as a percent of the source's picks. It adds up across
+          numbers within one source, not across sources.
+        data_tests: [not_null]
+      - name: total_source_choice_count
+        description: All picks by the source, repeated on each of its rows. Not additive.
+        data_tests: [not_null]
+
+  - name: dim_random_num_chosen
+    description: One row for each number from 1 to 100.
+    data_tests:
+      - assert_grain:
+          arguments:
+            columns:
+              - number_key
+    columns:
+      - name: number_key
+        data_tests: [not_null, unique]
+      - name: number_chosen
+        data_tests: [not_null, unique]
+      - name: number_tens_range
+        description: Such as '40s' for 40 to 49. '0s' is 1 to 9 and '100s' is 100 alone.
+        data_tests: [not_null]

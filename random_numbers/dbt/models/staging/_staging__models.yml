@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_random_num_ai
+    description: >
+      ChatGPT picks, one row per call that came back with a usable number.
+      The raw table is all text, so the types are set here.
+    columns:
+      - name: iteration
+        description: The call's sequence number in the source dataset.
+        data_tests: [unique, not_null]
+      - name: timestamp
+        data_tests: [unique, not_null]
+      - name: number_chosen
+        description: >
+          An integer from 1 to 100. Anything else would be left out of the
+          spine downstream while still counting toward the source's total, so
+          it fails here first.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 100
+      - name: model
+        description: The OpenAI model that answered.
+        data_tests: [not_null]
+
+  - name: stg_random_num_people
+    description: People's picks, one row per form response.
+    columns:
+      - name: id
+        data_tests: [unique, not_null]
+      - name: number_chosen
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 100
+
+  - name: stg_random_num_true
+    description: True random picks, one row per number drawn by true_random.py.
+    columns:
+      - name: timestamp
+        data_tests: [unique, not_null]
+      - name: number_chosen
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 100
